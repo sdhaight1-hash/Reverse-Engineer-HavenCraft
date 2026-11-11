@@ -29,6 +29,8 @@ var seed: int = 2026
 var resources: Dictionary = {}
 var sites: Dictionary = {}
 var buildings: Dictionary = {}
+# Each current workshop is a single-cell placeholder plot; its orders outlive worker assignments.
+var plots: Dictionary = {}
 var villagers: Array[Dictionary] = []
 var elapsed: float = 0.0
 var needs_elapsed: float = 0.0
@@ -45,6 +47,7 @@ func reset(world_seed: int = 2026) -> void:
 	resources = {"wood": 28, "stone": 18, "food": 18, "plank": 0}
 	sites.clear()
 	buildings.clear()
+	plots.clear()
 	villagers = [
 		{"name": "Ayla", "job_key": "", "hunger": 0.0},
 		{"name": "Bram", "job_key": "", "hunger": 0.0},
@@ -149,6 +152,8 @@ func place(kind: String, cells: Array[Vector2i], rotation: int = 0) -> String:
 			"id": kind, "x": cell.x, "z": cell.y,
 			"rotation": posmod(rotation, 4), "progress": 0.0
 		}
+		if RECIPES.has(kind):
+			plots[key] = _default_plot(key, kind)
 	assign_workers()
 	return ""
 
@@ -158,8 +163,40 @@ func remove_building(cell: Vector2i, layer: String) -> bool:
 	if not buildings.has(key):
 		return false
 	buildings.erase(key)
+	plots.erase(key)
 	assign_workers()
 	return true
+
+
+func _default_plot(station_key: String, kind: String) -> Dictionary:
+	return {
+		"station_key": station_key, "type": kind,
+		"orders": [{"recipe_id": kind, "active": true, "completed": 0}]
+	}
+
+
+func set_order_active(station_key: String, active: bool) -> bool:
+	if not plots.has(station_key):
+		return false
+	var plot: Dictionary = plots[station_key]
+	var orders: Array = plot["orders"]
+	if orders.is_empty():
+		return false
+	var order: Dictionary = orders[0]
+	order["active"] = active
+	orders[0] = order
+	plot["orders"] = orders
+	plots[station_key] = plot
+	return true
+
+
+func order_for(station_key: String) -> Dictionary:
+	if not plots.has(station_key):
+		return {}
+	var orders: Array = plots[station_key]["orders"]
+	if orders.is_empty():
+		return {}
+	return orders[0]
 
 
 func gather(cell: Vector2i) -> String:
@@ -195,8 +232,8 @@ func _available_site(station: Dictionary, site_kind: String) -> String:
 
 func assign_workers() -> void:
 	var stations: Array[String] = []
-	for key in buildings:
-		if RECIPES.has(buildings[key]["id"]):
+	for key in plots:
+		if buildings.has(key) and RECIPES.has(plots[key]["type"]):
 			stations.append(key)
 	stations.sort()
 	var taken := {}
@@ -228,11 +265,17 @@ func job_blocker(station_key: String) -> String:
 		return "Missing workstation"
 	var station: Dictionary = buildings[station_key]
 	var kind: String = station["id"]
-	if not RECIPES.has(kind):
+	if not RECIPES.has(kind) or not plots.has(station_key):
 		return "Not a workplace"
+	var order := order_for(station_key)
+	if order.is_empty() or not bool(order.get("active", false)):
+		return "Work order paused"
 	if worker_name(station_key) == "":
 		return "No worker assigned"
-	var recipe: Dictionary = RECIPES[kind]
+	var recipe_id: String = order["recipe_id"]
+	if not RECIPES.has(recipe_id):
+		return "Unknown work order"
+	var recipe: Dictionary = RECIPES[recipe_id]
 	var output: String = recipe["output"]
 	if int(resources[output]) + int(recipe["quantity"]) > capacity():
 		return "Output storage full"
@@ -253,11 +296,12 @@ func tick(delta: float) -> void:
 	for key in buildings.keys():
 		var station: Dictionary = buildings[key]
 		var kind: String = station["id"]
-		if not RECIPES.has(kind):
+		if not RECIPES.has(kind) or not plots.has(key):
 			continue
 		if job_blocker(key) != "":
 			continue
-		var recipe: Dictionary = RECIPES[kind]
+		var recipe_id: String = order_for(key)["recipe_id"]
+		var recipe: Dictionary = RECIPES[recipe_id]
 		station["progress"] += delta
 		var duration: float = recipe["duration"]
 		while station["progress"] >= duration:
@@ -278,6 +322,13 @@ func tick(delta: float) -> void:
 						sites[site_key] = site
 			resources[recipe["output"]] += int(recipe["quantity"])
 			completed_orders += 1
+			var plot: Dictionary = plots[key]
+			var orders: Array = plot["orders"]
+			var order: Dictionary = orders[0]
+			order["completed"] = int(order["completed"]) + 1
+			orders[0] = order
+			plot["orders"] = orders
+			plots[key] = plot
 		buildings[key] = station
 	while needs_elapsed >= 35.0:
 		needs_elapsed -= 35.0
@@ -315,8 +366,9 @@ func worker_summary() -> Array[String]:
 
 func snapshot() -> Dictionary:
 	return {
-		"schema": 1, "seed": seed, "resources": resources.duplicate(true),
+		"schema": 2, "seed": seed, "resources": resources.duplicate(true),
 		"sites": sites.duplicate(true), "buildings": buildings.duplicate(true),
+		"plots": plots.duplicate(true),
 		"villagers": villagers.duplicate(true), "elapsed": elapsed,
 		"needs_elapsed": needs_elapsed, "happiness": happiness,
 		"completed_orders": completed_orders
@@ -324,7 +376,10 @@ func snapshot() -> Dictionary:
 
 
 func restore(data: Dictionary) -> bool:
-	if int(data.get("schema", -1)) != 1:
+	var schema_version := int(data.get("schema", -1))
+	if schema_version != 1 and schema_version != 2:
+		return false
+	if schema_version == 2 and not data.get("plots") is Dictionary:
 		return false
 	if not data.get("resources") is Dictionary or not data.get("sites") is Dictionary:
 		return false
@@ -349,6 +404,26 @@ func restore(data: Dictionary) -> bool:
 		building["rotation"] = int(building["rotation"])
 		building["progress"] = float(building["progress"])
 		buildings[key] = building
+	plots.clear()
+	if schema_version == 1:
+		for key in buildings:
+			var kind: String = buildings[key]["id"]
+			if RECIPES.has(kind):
+				plots[key] = _default_plot(key, kind)
+	else:
+		for key in data["plots"]:
+			var plot: Dictionary = data["plots"][key].duplicate(true)
+			if not buildings.has(key) or not RECIPES.has(plot.get("type", "")):
+				return false
+			if not plot.get("orders") is Array or plot["orders"].is_empty():
+				return false
+			var orders: Array = plot["orders"]
+			for order in orders:
+				if not order is Dictionary or not RECIPES.has(order.get("recipe_id", "")):
+					return false
+				order["active"] = bool(order.get("active", false))
+				order["completed"] = int(order.get("completed", 0))
+			plots[key] = plot
 	villagers.clear()
 	for v in data["villagers"]:
 		if v is Dictionary:
