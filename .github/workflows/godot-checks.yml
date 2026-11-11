@@ -27,6 +27,9 @@ jobs:
       - name: Import and parse project scripts
         run: godot --headless --path . --editor --quit
 
+      - name: Validate safe ZIP save reconnaissance
+        run: python3 -m unittest discover -s tests -p 'test_save_archive.py' -v
+
       - name: Run simulation regression suite
         run: godot --headless --path . --script res://tests/test_settlement.gd
 
