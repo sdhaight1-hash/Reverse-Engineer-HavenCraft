@@ -188,7 +188,7 @@ func _create_ui() -> void:
 		button.pressed.connect(_select_tool.bind(kind))
 		bar.add_child(button)
 		palette_buttons[kind] = button
-	message_label = _make_label("WASD move • Right-drag orbit • Scroll zoom • Left-click/drag build • Q pipette • R rotate • F1 speed • F5 save • F9 load", 12)
+	message_label = _make_label("WASD move • Right-drag orbit • Scroll zoom • Left-click/drag build • Q pipette • R rotate • P pause plot • F1 speed • F5 save • F9 load", 12)
 	bottom_col.add_child(message_label)
 	_select_tool(current_tool)
 
@@ -423,6 +423,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_R:
 				placement_rotation = posmod(placement_rotation + 1, 4)
 				_preview_signature = ""
+			KEY_P:
+				var cell := _pointed_cell()
+				var station_key := SettlementModel.build_key(cell.x, cell.y, "object")
+				if sim.plots.has(station_key):
+					var active: bool = bool(sim.order_for(station_key).get("active", false))
+					sim.set_order_active(station_key, not active)
+					_notify("Plot order %s" % ("resumed" if active == false else "paused"))
+					_update_hud()
+				else:
+					_notify("Point at a workshop to pause/resume its order")
 			KEY_F1:
 				simulation_speed = 1.0 if simulation_speed > 1.0 else 8.0
 				_notify("Simulation: %dx" % int(simulation_speed))
