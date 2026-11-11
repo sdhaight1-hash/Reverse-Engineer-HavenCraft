@@ -147,5 +147,10 @@ func _test_save_roundtrip() -> void:
 	var decoded = JSON.parse_string(encoded)
 	var restored := SettlementModel.new()
 	check(restored.restore(decoded), "JSON save loads")
-	check(restored.snapshot() == model.snapshot(), "snapshot matches after round trip")
+	var original := model.snapshot()
+	var loaded := restored.snapshot()
+	for key in original:
+		if original[key] != loaded.get(key):
+			printerr("SAVE MISMATCH: %s (original=%s; loaded=%s)" % [str(key), str(original[key]).left(500), str(loaded.get(key)).left(500)])
+	check(loaded == original, "snapshot matches after round trip")
 	check(not restored.restore({"schema": 999}), "unsupported save schema rejected")
