@@ -332,12 +332,29 @@ func restore(data: Dictionary) -> bool:
 		return false
 	seed = int(data.get("seed", 2026))
 	resources = data["resources"].duplicate(true)
+	for material in resources:
+		resources[material] = int(resources[material])
 	sites = data["sites"].duplicate(true)
+	for key in sites:
+		var site: Dictionary = sites[key]
+		site["x"] = int(site["x"])
+		site["z"] = int(site["z"])
+		site["amount"] = int(site["amount"])
+		sites[key] = site
 	buildings = data["buildings"].duplicate(true)
+	for key in buildings:
+		var building: Dictionary = buildings[key]
+		building["x"] = int(building["x"])
+		building["z"] = int(building["z"])
+		building["rotation"] = int(building["rotation"])
+		building["progress"] = float(building["progress"])
+		buildings[key] = building
 	villagers.clear()
 	for v in data["villagers"]:
 		if v is Dictionary:
-			villagers.append(v.duplicate(true))
+			var person: Dictionary = v.duplicate(true)
+			person["hunger"] = float(person.get("hunger", 0.0))
+			villagers.append(person)
 	elapsed = float(data.get("elapsed", 0.0))
 	needs_elapsed = float(data.get("needs_elapsed", 0.0))
 	happiness = float(data.get("happiness", 65.0))
