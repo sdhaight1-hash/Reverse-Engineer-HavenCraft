@@ -10,6 +10,8 @@ func _initialize() -> void:
 	_test_finite_harvesting()
 	_test_production_and_blockers()
 	_test_auto_assignment()
+	_test_plot_owned_orders()
+	_test_legacy_save_migration()
 	_test_needs()
 	_test_save_roundtrip()
 	if failures > 0:
@@ -126,6 +128,51 @@ func _test_auto_assignment() -> void:
 		if model.job_blocker(key) == "No worker assigned":
 			unstafed += 1
 	check(unstafed == 1, "unassigned fourth farm reports reason")
+
+
+func _test_plot_owned_orders() -> void:
+	var model := SettlementModel.new(25)
+	var station := Vector2i(16, 16)
+	check(model.place("farm", [station]) == "", "farm creates working plot")
+	var key := SettlementModel.build_key(station.x, station.y, "object")
+	check(model.plots.has(key), "work orders belong to plot entity")
+	check(model.order_for(key)["recipe_id"] == "farm", "default farm recipe persists on plot")
+	check(model.set_order_active(key, false), "plot work order can be paused")
+	check(model.job_blocker(key) == "Work order paused", "paused order is visibly blocked")
+	var food_before: int = model.resources["food"]
+	model.tick(20.0)
+	check(int(model.resources["food"]) == food_before, "paused plot produces nothing")
+	model.villagers.clear()
+	model.assign_workers()
+	check(model.plots.has(key), "orders survive all workers unassigning")
+	check(model.order_for(key)["active"] == false, "paused order survives staffing loss")
+	check(model.set_order_active(key, true), "plot order can resume without re-creation")
+	check(model.job_blocker(key) == "No worker assigned", "unassigned order retains explicit blocker")
+	model.villagers.append({"name": "Dara", "job_key": "", "hunger": 0.0})
+	model.assign_workers()
+	check(model.worker_name(key) == "Dara", "replacement worker inherits plot assignment")
+	model.tick(9.1)
+	check(model.order_for(key)["completed"] == 1, "completion count stored on plot order")
+	var encoded := JSON.stringify(model.snapshot())
+	var restored := SettlementModel.new()
+	check(restored.restore(JSON.parse_string(encoded)), "plot order saves and loads")
+	check(restored.order_for(key) == model.order_for(key), "work order state persists after roundtrip")
+	check(restored.remove_building(station, "object"), "workshop can be removed")
+	check(not restored.plots.has(key), "removing workshop removes its placeholder plot")
+
+
+func _test_legacy_save_migration() -> void:
+	var model := SettlementModel.new()
+	var station := Vector2i(16, 16)
+	check(model.place("farm", [station]) == "", "legacy test constructs workshop")
+	var legacy: Dictionary = model.snapshot()
+	legacy["schema"] = 1
+	legacy.erase("plots")
+	var migrated := SettlementModel.new()
+	check(migrated.restore(JSON.parse_string(JSON.stringify(legacy))), "schema 1 save migrates")
+	var key := SettlementModel.build_key(station.x, station.y, "object")
+	check(migrated.plots.has(key), "legacy workshop receives default plot")
+	check(migrated.order_for(key)["active"], "default migrated order remains active")
 
 
 func _test_needs() -> void:
