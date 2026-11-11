@@ -47,7 +47,7 @@ func _test_atomic_construction() -> void:
 	check(model.place("floor", [cell]) == "Tile occupied", "same layer cannot overlap")
 	check(model.place("wall", [cell]) == "", "walls and floors use different build layers")
 	var already_built := model.buildings.size()
-	var old_wood := model.resources["wood"]
+	var old_wood: int = model.resources["wood"]
 	check(model.place("roof", [Vector2i(14, 14), cell]) == "", "new roof layer allows modular construction")
 	var invalid: Array[Vector2i] = [Vector2i(15, 15), Vector2i(-1, 15)]
 	check(model.place("floor", invalid) == "Outside settlement", "out-of-world cell blocks entire batch")
@@ -76,7 +76,7 @@ func _free_station_near_site(model: SettlementModel, site_kind: String) -> Vecto
 		if site["kind"] != site_kind:
 			continue
 		for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			var cell := Vector2i(int(site["x"]), int(site["z"])) + offset
+			var cell: Vector2i = Vector2i(int(site["x"]), int(site["z"])) + offset
 			if SettlementModel.in_bounds(cell) and not model.sites.has(SettlementModel.cell_key(cell.x, cell.y)):
 				return cell
 	return Vector2i(-1, -1)
