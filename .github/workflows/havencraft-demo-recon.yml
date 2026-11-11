@@ -1,13 +1,9 @@
 name: HavenCraft demo REA static reconnaissance
 
+# Manual only: anonymous Steam acquisition is currently blocked (exit 8).
+# Avoid repeated failing downloads on every research-script edit.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - work/vertical-slice-01
-    paths:
-      - .github/workflows/havencraft-demo-recon.yml
-      - scripts/recon/**
 
 permissions:
   contents: read
