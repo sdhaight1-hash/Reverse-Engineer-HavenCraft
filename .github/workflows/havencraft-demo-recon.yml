@@ -42,6 +42,7 @@ jobs:
         run: |
           set -uo pipefail
           mkdir -p "$RUNNER_TEMP/havencraft-demo"
+          set +e
           # Do not publish the SteamCMD log, which may include session details.
           timeout 850 "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
             +@sSteamCmdForcePlatformType windows \
@@ -49,14 +50,25 @@ jobs:
             +login anonymous +app_update 5260550 validate +quit \
             > "$RUNNER_TEMP/hc-recon/steam-private.log" 2>&1
           code=$?
+          set -e
           if [ "$code" -eq 0 ] && ! grep -q "Success! App '5260550' fully installed" "$RUNNER_TEMP/hc-recon/steam-private.log"; then
             echo "SteamCMD did not report a successful installation."
             code=1
           fi
           printf '%s\n' "$code" > "$RUNNER_TEMP/hc-recon/steam-exit-code.txt"
+          reason="none"
           if [ "$code" -ne 0 ]; then
-            echo "::error::Steam anonymous acquisition failed, timed out or lacks an entitlement. No bypass attempted."
+            reason="unclassified_acquisition_failure"
+            if grep -qiE 'No subscription|not owned|missing license|not available to this account' "$RUNNER_TEMP/hc-recon/steam-private.log"; then
+              reason="anonymous_entitlement_unavailable"
+            elif grep -qiE 'ERROR! Failed to install app|Invalid platform' "$RUNNER_TEMP/hc-recon/steam-private.log"; then
+              reason="steam_app_download_error"
+            elif grep -qiE 'failed to connect|connection timed out|network error|timeout' "$RUNNER_TEMP/hc-recon/steam-private.log"; then
+              reason="steam_network_error"
+            fi
+            echo "::error::Steam anonymous acquisition stopped with exit $code (reason: $reason). No bypass attempted."
           fi
+          printf '%s\n' "$reason" > "$RUNNER_TEMP/hc-recon/steam-failure-class.txt"
           exit "$code"
 
       - name: Set up Node for REA
@@ -108,6 +120,7 @@ jobs:
           path: |
             ${{ runner.temp }}/hc-recon/install-fingerprint.json
             ${{ runner.temp }}/hc-recon/steam-exit-code.txt
+            ${{ runner.temp }}/hc-recon/steam-failure-class.txt
             ${{ runner.temp }}/hc-recon/rea-desktop-summary.json
             ${{ runner.temp }}/hc-recon/rea-managed-identity.json
           if-no-files-found: warn
