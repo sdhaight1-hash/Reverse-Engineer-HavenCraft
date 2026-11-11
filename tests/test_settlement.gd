@@ -110,8 +110,8 @@ func _test_production_and_blockers() -> void:
 	check(model.resources["plank"] == plank_before, "blocked sawmill does not make planks")
 	model.resources["wood"] = 4
 	model.tick(5.1)
-	check(model.resources["plank"] == plank_before + 1, "unblocked sawmill consumes timber and produces planks")
-	check(model.resources["wood"] <= 2, "sawmill spends input materials")
+	check(model.resources["plank"] == plank_before + 5, "sawmill yields five planks from one wood (documented Alpha 6)")
+	check(model.resources["wood"] == 3, "sawmill consumes exactly one wood per craft")
 
 
 func _test_auto_assignment() -> void:
