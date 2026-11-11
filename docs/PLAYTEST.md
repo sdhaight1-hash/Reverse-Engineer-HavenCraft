@@ -9,6 +9,7 @@ Install the standard **Godot 4.4.1** editor, clone/download this repository and 
 - **Left click** place selected piece; **left drag** stamp a rectangle (maximum 12x12).
 - **Q** copy the construction piece under cursor.
 - **R** rotate the next building element 90 degrees.
+- **P** while aiming at a workshop: pause/resume its work order; the task persists even if all workers are unassigned.
 - **F1** switch time from 1x to 8x (useful to watch worker production).
 - **F5** save the settlement; **F9** load it.
 - **1–9** choose first nine palette tools; click other palette buttons or horizontally scroll.
@@ -19,6 +20,7 @@ Install the standard **Godot 4.4.1** editor, clone/download this repository and 
 2. Place a **forester** within seven Manhattan tiles of a tree. A villager is assigned automatically.
 3. Toggle F1 and observe wood increase and a tree disappear after a finite number of orders.
 4. Put a **sawmill** in the central clearing; verify that it converts **1 wood into 5 planks**.
+   - Aim at the sawmill, press **P**, let time pass, and verify production pauses. Press **P** again and observe production resume.
 5. Gather rocks manually or build a **quarry** near a rock.
 6. Build a **farm** for food and then a **home**, which needs 2 planks.
 7. Try to place more tiles than your materials allow. None should appear and no materials should be spent.
