@@ -18,7 +18,10 @@ Evidence levels used in subsequent research:
 - [x] Timber + quarry + farm + sawmill economy; wood to plank dependency.
 - [x] Population food consumption, rudimentary morale, warehouse capacity.
 - [x] Save/load versioned JSON, time acceleration and automated simulation regression suite.
-- [ ] Godot CI passes, human visual/gameplay check on Windows.
+- [x] Godot CI import, simulation regression checks (63), Python ZIP metadata tests (3), headless scene boot.
+- [ ] Human visual/gameplay check on Windows.
+- [x] Evidence-driven intermediate step: temporary plot-owned order records, worker-independent persistence, order pause/resume and legacy save migration.
+- [ ] True plot-area geometry/furnishing prerequisites and container-based logistics (next milestones).
 
 **Acceptance:** Open the main scene, drag 2x2 floors, place a wall on an existing floor, build a forester near trees, observe wood output and site depletion, build a sawmill, observe plank creation and missing-material blockers; save, relaunch and load the town. The CI suite must pass first.
 
@@ -58,3 +61,9 @@ The Steam demo is available for Windows. If its **installed executable/data dire
 - https://havencraft.dionicsoftware.com/devlog/10/ (plot upgrades)
 - https://havencraft.dionicsoftware.com/devlog/20/ (Steam demo)
 - https://github.com/morluto/rea (optional separate REA toolkit)
+
+
+## Evidence update (2026-11-11)
+The [HavenCraft demo reconnaissance report](research/havencraft-demo-evidence-2026-11-11.md) compared the official Alpha 6 documentation against the independent prototype. It confirmed the target's plot-owned work orders, real storage/logistics and documented sawmill conversion of **1 wood into 5 planks**. The current build has adopted the latter conversion and an initial workshop-as-plot order lifecycle, but still uses shared inventory and cosmetic NPC movement.
+
+**Binary analysis is blocked**: the official SteamCMD anonymous download failed with exit code 8 and acquired zero files. See [local REA runbook](research/LOCAL_REA_RUNBOOK.md); no source code or runtime mechanisms have been recovered. The GitHub Steam workflow is manual-only pending lawful installation access.
