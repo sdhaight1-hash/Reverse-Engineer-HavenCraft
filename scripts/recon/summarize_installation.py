@@ -75,12 +75,16 @@ def main() -> None:
                 "size_bytes": path.stat().st_size,
             })
 
+    failure_file = args.report_root / "steam-failure-class.txt"
+    failure_class = failure_file.read_text(encoding="utf-8").strip() if failure_file.is_file() else None
+
     summary = {
         "target": "HavenCraft official Steam demo",
         "steam_app_id": 5260550,
         "acquisition": {
             "method": "SteamCMD official anonymous (Windows depot requested)",
             "exit_code": steam_exit_code,
+            "failure_class": failure_class,
             "completed": steam_exit_code == 0 and len(files) > 0,
             "restriction": "Anonymous access is not guaranteed; no entitlement bypass attempted.",
         },
