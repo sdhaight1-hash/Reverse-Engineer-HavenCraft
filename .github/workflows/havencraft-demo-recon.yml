@@ -1,0 +1,114 @@
+name: HavenCraft demo REA static reconnaissance
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - work/vertical-slice-01
+    paths:
+      - .github/workflows/havencraft-demo-recon.yml
+      - scripts/recon/**
+
+permissions:
+  contents: read
+
+jobs:
+  static-inspection:
+    name: Official Steam demo metadata (no game execution)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout research scripts
+        uses: actions/checkout@v4
+
+      - name: Prepare report directory
+        run: mkdir -p "$RUNNER_TEMP/hc-recon"
+
+      - name: Install official SteamCMD
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq lib32gcc-s1 ca-certificates
+          mkdir -p "$RUNNER_TEMP/steamcmd"
+          curl --fail --location --silent --show-error --retry 3 \
+            https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            -o "$RUNNER_TEMP/steamcmd.tar.gz"
+          tar -xzf "$RUNNER_TEMP/steamcmd.tar.gz" -C "$RUNNER_TEMP/steamcmd"
+
+      - name: Acquire official free demo (anonymous only)
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/havencraft-demo"
+          # Do not publish the SteamCMD log, which may include session details.
+          timeout 850 "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
+            +@sSteamCmdForcePlatformType windows \
+            +force_install_dir "$RUNNER_TEMP/havencraft-demo" \
+            +login anonymous +app_update 5260550 validate +quit \
+            > "$RUNNER_TEMP/hc-recon/steam-private.log" 2>&1
+          code=$?
+          if [ "$code" -eq 0 ] && ! grep -q "Success! App '5260550' fully installed" "$RUNNER_TEMP/hc-recon/steam-private.log"; then
+            echo "SteamCMD did not report a successful installation."
+            code=1
+          fi
+          printf '%s\n' "$code" > "$RUNNER_TEMP/hc-recon/steam-exit-code.txt"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Steam anonymous acquisition failed, timed out or lacks an entitlement. No bypass attempted."
+          fi
+          exit "$code"
+
+      - name: Set up Node for REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+
+      - name: Install pinned REA CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/rea-cli" --no-audit --no-fund rea-agents@6.7.0
+          "$RUNNER_TEMP/rea-cli/node_modules/.bin/rea" --version
+
+      - name: Inspect installation and optional managed assembly without running demo
+        shell: bash
+        run: |
+          set -euo pipefail
+          REA="$RUNNER_TEMP/rea-cli/node_modules/.bin/rea"
+          GAME="$RUNNER_TEMP/havencraft-demo"
+          "$REA" inspect-desktop-application "$GAME" \
+            --detail summary \
+            --evidence_output "$RUNNER_TEMP/rea-private-desktop-evidence.json" \
+            --json > "$RUNNER_TEMP/hc-recon/rea-desktop-summary.json"
+
+          # Only PE/CLI inspection if an actual managed game assembly exists.
+          ASSEMBLY="$(find "$GAME" -type f -name 'Assembly-CSharp.dll' -print -quit)"
+          if [ -n "$ASSEMBLY" ]; then
+            "$REA" inspect-managed-artifact "$ASSEMBLY" \
+              --detail summary \
+              --evidence-bundle "$RUNNER_TEMP/rea-private-managed-evidence.json" \
+              --json > "$RUNNER_TEMP/hc-recon/rea-managed-identity.json"
+          fi
+
+      - name: Generate sanitized installation fingerprint
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/recon/summarize_installation.py \
+            "$RUNNER_TEMP/havencraft-demo" "$RUNNER_TEMP/hc-recon"
+          rm -f "$RUNNER_TEMP/hc-recon/steam-private.log"
+
+      - name: Publish metadata ONLY (never upload demo binaries/asset bundles)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: havencraft-demo-static-recon
+          path: |
+            ${{ runner.temp }}/hc-recon/install-fingerprint.json
+            ${{ runner.temp }}/hc-recon/steam-exit-code.txt
+            ${{ runner.temp }}/hc-recon/rea-desktop-summary.json
+            ${{ runner.temp }}/hc-recon/rea-managed-identity.json
+          if-no-files-found: warn
+          retention-days: 7
