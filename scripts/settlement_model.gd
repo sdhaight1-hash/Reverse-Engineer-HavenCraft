@@ -22,7 +22,7 @@ const RECIPES := {
 	"forester": {"duration": 6.0, "output": "wood", "quantity": 2, "site": "tree"},
 	"quarry": {"duration": 7.0, "output": "stone", "quantity": 2, "site": "rock"},
 	"farm": {"duration": 9.0, "output": "food", "quantity": 3},
-	"sawmill": {"duration": 5.0, "output": "plank", "quantity": 1, "input": {"wood": 2}}
+	"sawmill": {"duration": 5.0, "output": "plank", "quantity": 5, "input": {"wood": 1}}
 }
 
 var seed: int = 2026
