@@ -18,7 +18,7 @@ Install the standard **Godot 4.4.1** editor, clone/download this repository and 
 1. Drag a 2x2 wood floor in the central clearing, then place a wall on one floor tile.
 2. Place a **forester** within seven Manhattan tiles of a tree. A villager is assigned automatically.
 3. Toggle F1 and observe wood increase and a tree disappear after a finite number of orders.
-4. Put a **sawmill** in the central clearing; verify that it converts **2 wood into 1 plank**.
+4. Put a **sawmill** in the central clearing; verify that it converts **1 wood into 5 planks**.
 5. Gather rocks manually or build a **quarry** near a rock.
 6. Build a **farm** for food and then a **home**, which needs 2 planks.
 7. Try to place more tiles than your materials allow. None should appear and no materials should be spent.
