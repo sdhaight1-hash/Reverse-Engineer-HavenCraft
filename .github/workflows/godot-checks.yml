@@ -1,0 +1,34 @@
+name: Godot validation
+
+on:
+  push:
+    branches:
+      - main
+      - 'work/**'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  simulation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Godot 4.4.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.4.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Import and parse project scripts
+        run: godot --headless --path . --editor --quit
+
+      - name: Run simulation regression suite
+        run: godot --headless --path . --script res://tests/test_settlement.gd
+
+      - name: Smoke boot main scene
+        run: godot --headless --path . --quit-after 5
