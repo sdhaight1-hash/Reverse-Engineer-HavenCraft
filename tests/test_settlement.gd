@@ -95,6 +95,8 @@ func _test_production_and_blockers() -> void:
 	model.tick(6.1)
 	check(int(model.resources["wood"]) == initial_wood + 2, "forester produces accounted timber")
 	check(model.completed_orders == 1, "completed production order recorded")
+	# Isolate the sawmill: otherwise the still-active forester would restock wood.
+	check(model.remove_building(forest_pos, "object"), "remove forester for independent recipe gate test")
 	# Sawmill must stop without ingredients and resume immediately when supplied.
 	var mill_pos := Vector2i(16, 16)
 	check(model.place("sawmill", [mill_pos]) == "", "sawmill builds")
